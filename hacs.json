@@ -1,10 +1,9 @@
 
 {
-    "name": "vacuum-styj02ym",
-    "country": ["FR", "PL"],
+    "name": "Viomi Vacuum V8 (STYJ02YM)",
     "domains": ["vacuum"],
-    "homeassistant": "0.109.0",
+    "homeassistant": "2021.01.5",
     "iot_class": "local_poll",
     "zip_release": true,
-    "filename": "miio2.zip"
+    "filename": "release.zip"
 }

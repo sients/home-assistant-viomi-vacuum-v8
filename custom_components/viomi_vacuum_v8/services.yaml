@@ -1,0 +1,35 @@
+clean_zone:
+  description: Start the cleaning operation in the selected areas for the number of repeats indicated.
+  fields:
+    entity_id:
+      description: Name of the vacuum entity.
+      example: "vacuum.my_viomi_vacuum_v8"
+    zone:
+      description: Array of zones. Each zone is an array of 4 integer values.
+      example: "[[23510,25311,25110,26362]]"
+    repeats:
+      description: Number of cleaning repeats for each zone between 1 and 3.
+      example: "1"
+
+clean_area:
+  description: Start the cleaning operation in the selected areas for the number of repeats indicated.
+  fields:
+    entity_id:
+      description: Name of the vacuum entity.
+      example: "vacuum.my_viomi_vacuum_v8"
+    area:
+      description: Array of areas. Each area is an array of 8 integer values (4 points).
+      example: "[[23510,25311,25110,26362]]"
+    repeats:
+      description: Number of cleaning repeats for each zone between 1 and 3.
+      example: "1"
+
+clean_point:
+  description: Start the cleaning operation by selected point.
+  fields:
+    entity_id:
+      description: Name of the vacuum entity.
+      example: "vacuum.my_viomi_vacuum_v8"
+    point:
+      description: Point.
+      example: "[23510,25311]"

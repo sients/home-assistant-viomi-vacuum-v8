@@ -1,15 +1,17 @@
-# Hacky Home assistant support for Xiaomi vacuum STYJ02YM 
+# Home assistant support for Viomi Vacuum V8 (STYJ02YM)
 
-## This is for STYJ02YM (apparently EU version) with 3.5.3_0017 firmware
+This is for Viomi Vacuum V8 (STYJ02YM) (apparently EU version) with 3.5.3_0017 firmware.
 
-### Install:
-- install it with HACS
-- Add the configuration to configuration.yaml, example:
+## Install:
+- Install it with [HACS](https://hacs.xyz/)
+- Add the configuration to `configuration.yaml`, example:
 
 ```yaml
 vacuum:
-  - platform: miio2
-    host: 192.168.68.105
-    token: !secret vacuum
-    name: Mi hihi
+  - platform: viomi_vacuum_v8
+    host: 192.168.0.105
+    token: !secret viomi_vacuum_v8_token
+    name: 'Viomi Vacuum V8'
 ```
+
+Services described in the `services.yaml`.

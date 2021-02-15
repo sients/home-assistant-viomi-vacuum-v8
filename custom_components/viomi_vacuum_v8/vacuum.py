@@ -1,4 +1,4 @@
-"""Support for the Xiaomi vacuum cleaner robot."""
+"""Support for the Viomi Vacuum V8 robot."""
 import asyncio
 from functools import partial
 import logging
@@ -7,8 +7,6 @@ from miio import DeviceException, Vacuum  # pylint: disable=import-error
 import voluptuous as vol
 
 from homeassistant.components.vacuum import (
-    ATTR_CLEANED_AREA,
-    DOMAIN,
     PLATFORM_SCHEMA,
     STATE_CLEANING,
     STATE_DOCKED,
@@ -39,8 +37,9 @@ import homeassistant.helpers.config_validation as cv
 
 _LOGGER = logging.getLogger(__name__)
 
-DEFAULT_NAME = "Xiaomi Vacuum cleaner STYJ02YM"
-DATA_KEY = "vacuum.miio2"
+DEFAULT_NAME = "Viomi Vacuum V8"
+DOMAIN = "viomi_vacuum_v8"
+DATA_KEY = "viomi_vacuum_v8"
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
@@ -51,13 +50,16 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     extra=vol.ALLOW_EXTRA,
 )
 
-VACUUM_SERVICE_SCHEMA = vol.Schema(
-    {vol.Optional(ATTR_ENTITY_ID): cv.comp_entity_ids})
-SERVICE_CLEAN_ZONE = "xiaomi_clean_zone"
-SERVICE_CLEAN_POINT = "xiaomi_clean_point"
+SERVICE_CLEAN_ZONE = "clean_zone"
+SERVICE_CLEAN_AREA = "clean_area"
+SERVICE_CLEAN_POINT = "clean_point"
 ATTR_ZONE_ARRAY = "zone"
 ATTR_ZONE_REPEATER = "repeats"
+ATTR_AREA_ARRAY = "area"
+ATTR_AREA_REPEATER = "repeats"
 ATTR_POINT = "point"
+
+VACUUM_SERVICE_SCHEMA = vol.Schema({vol.Optional(ATTR_ENTITY_ID): cv.comp_entity_ids})
 SERVICE_SCHEMA_CLEAN_ZONE = VACUUM_SERVICE_SCHEMA.extend(
     {
         vol.Required(ATTR_ZONE_ARRAY): vol.All(
@@ -73,6 +75,21 @@ SERVICE_SCHEMA_CLEAN_ZONE = VACUUM_SERVICE_SCHEMA.extend(
         ),
     }
 )
+SERVICE_SCHEMA_CLEAN_AREA = VACUUM_SERVICE_SCHEMA.extend(
+    {
+        vol.Required(ATTR_AREA_ARRAY): vol.All(
+            list,
+            [
+                vol.ExactSequence(
+                    [vol.Coerce(float), vol.Coerce(float), vol.Coerce(float), vol.Coerce(float), vol.Coerce(float), vol.Coerce(float), vol.Coerce(float), vol.Coerce(float)]
+                )
+            ],
+        ),
+        vol.Required(ATTR_AREA_REPEATER): vol.All(
+            vol.Coerce(int), vol.Clamp(min=1, max=3)
+        ),
+    }
+)
 SERVICE_SCHEMA_CLEAN_POINT = VACUUM_SERVICE_SCHEMA.extend(
     {
         vol.Required(ATTR_POINT): vol.All(
@@ -82,10 +99,15 @@ SERVICE_SCHEMA_CLEAN_POINT = VACUUM_SERVICE_SCHEMA.extend(
         )
     }
 )
+
 SERVICE_TO_METHOD = {
     SERVICE_CLEAN_ZONE: {
         "method": "async_clean_zone",
         "schema": SERVICE_SCHEMA_CLEAN_ZONE,
+    },
+    SERVICE_CLEAN_AREA: {
+        "method": "async_clean_area",
+        "schema": SERVICE_SCHEMA_CLEAN_AREA,
     },
     SERVICE_CLEAN_POINT: {
         "method": "async_clean_point",
@@ -95,8 +117,7 @@ SERVICE_TO_METHOD = {
 
 FAN_SPEEDS = {"Silent": 0, "Standard": 1, "Medium": 2, "Turbo": 3}
 
-
-SUPPORT_XIAOMI = (
+SUPPORT_VIOMI = (
     SUPPORT_STATE
     | SUPPORT_PAUSE
     | SUPPORT_STOP
@@ -107,7 +128,6 @@ SUPPORT_XIAOMI = (
     | SUPPORT_BATTERY
     | SUPPORT_START
 )
-
 
 STATE_CODE_TO_STATE = {
     0: STATE_IDLE,
@@ -153,7 +173,7 @@ VACUUM_CARD_PROPS_REFERENCES = {
 }
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    """Set up the Xiaomi vacuum cleaner robot platform."""
+    """Set up the Viomi Vacuum V8 robot platform."""
     if DATA_KEY not in hass.data:
         hass.data[DATA_KEY] = {}
 
@@ -165,13 +185,13 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     _LOGGER.info("Initializing with host %s (token %s...)", host, token[:5])
     vacuum = Vacuum(host, token)
 
-    mirobo = MiroboVacuum2(name, vacuum)
-    hass.data[DATA_KEY][host] = mirobo
+    robot = ViomiVacuumRobot(name, vacuum)
+    hass.data[DATA_KEY][host] = robot
 
-    async_add_entities([mirobo], update_before_add=True)
+    async_add_entities([robot], update_before_add=True)
 
     async def async_service_handler(service):
-        """Map services to methods on MiroboVacuum."""
+        """Map services to methods on Viomi Vacuum V8."""
         method = SERVICE_TO_METHOD.get(service.service)
         params = {
             key: value for key,
@@ -206,11 +226,11 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         )
 
 
-class MiroboVacuum2(StateVacuumEntity):
-    """Representation of a Xiaomi Vacuum cleaner robot."""
+class ViomiVacuumRobot(StateVacuumEntity):
+    """Representation of a Viomi Vacuum V8 robot."""
 
     def __init__(self, name, vacuum):
-        """Initialize the Xiaomi vacuum cleaner robot handler."""
+        """Initialize the Viomi Vacuum V8 robot handler."""
         self._name = name
         self._vacuum = vacuum
 
@@ -283,7 +303,7 @@ class MiroboVacuum2(StateVacuumEntity):
     @property
     def supported_features(self):
         """Flag vacuum cleaner robot features that are supported."""
-        return SUPPORT_XIAOMI
+        return SUPPORT_VIOMI
 
     async def _try_command(self, mask_error, func, *args, **kwargs):
         """Call a vacuum command handling error messages."""
@@ -449,6 +469,23 @@ class MiroboVacuum2(StateVacuumEntity):
         await self._try_command("Unable to clean zone: %s", self._vacuum.raw_command, 'set_uploadmap', [1]) \
             and await self._try_command("Unable to clean zone: %s", self._vacuum.raw_command, 'set_zone', result) \
             and await self._try_command("Unable to clean zone: %s", self._vacuum.raw_command, 'set_mode', [3, 1])
+
+    async def async_clean_area(self, area, repeats=1):
+        """Clean selected area for the number of repeats indicated."""
+        result = []
+        i = 0
+        for a in area:
+            x1, y1, x2, y2, x3, y3, x4, y4 = a
+            res = '_'.join(str(x)
+                           for x in [i, 0, x1, y1, x2, y2, x3, y3, x4, y4])
+            for _ in range(repeats):
+                result.append(res)
+                i += 1
+        result = [i] + result
+
+        await self._try_command("Unable to clean area: %s", self._vacuum.raw_command, 'set_uploadmap', [1]) \
+            and await self._try_command("Unable to clean area: %s", self._vacuum.raw_command, 'set_zone', result) \
+            and await self._try_command("Unable to clean area: %s", self._vacuum.raw_command, 'set_mode', [3, 1])
 
     async def async_clean_point(self, point):
         """Clean selected area"""

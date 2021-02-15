@@ -35,13 +35,13 @@ jobs:
         uses: actions/checkout@v2
       - name: ZIP files
         run: |
-          cd /home/runner/work/home-assistant-vacuum-styj02ym/home-assistant-vacuum-styj02ym/custom_components/miio2
-          zip miio2.zip -r ./
+          cd /home/runner/work/home-assistant-viomi-vacuum-v8/home-assistant-viomi-vacuum-v8/custom_components/viomi_vacuum_v8
+          zip release.zip -r ./
       - name: Upload zip to release
         uses: svenstaro/upload-release-action@v1-release
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: /home/runner/work/home-assistant-vacuum-styj02ym/home-assistant-vacuum-styj02ym/custom_components/miio2/miio2.zip
-          asset_name: miio2.zip
+          file: /home/runner/work/home-assistant-viomi-vacuum-v8/home-assistant-viomi-vacuum-v8/custom_components/viomi_vacuum_v8/release.zip
+          asset_name: release.zip
           tag: ${{ github.ref }}
           overwrite: true

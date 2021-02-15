@@ -1,0 +1,12 @@
+{
+  "domain": "viomi_vacuum_v8",
+  "name": "Viomi Vacuum V8",
+  "documentation": "https://github.com/tykarol/home-assistant-viomi-vacuum-v8",
+  "requirements": [
+    "construct==2.10.59",
+    "python-miio==0.5.4"
+  ],
+  "dependencies": [],
+  "codeowners": ["@nqkdev", "@KrzysztofHajdamowicz", "@tykarol"],
+  "config_flow": false
+}
