@@ -3,7 +3,7 @@ import asyncio
 from functools import partial
 import logging
 
-from miio import DeviceException, Vacuum  # pylint: disable=import-error
+from miio import DeviceException, Device, Vacuum  # pylint: disable=import-error
 import voluptuous as vol
 
 from homeassistant.components.vacuum import (
@@ -44,7 +44,7 @@ DATA_KEY = "viomi_vacuum_v8"
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_HOST): cv.string,
-        vol.Required(CONF_TOKEN): vol.All(str, vol.Length(min=32, max=32)),
+        vol.Required(CONF_TOKEN): vol.All(cv.string, vol.Length(min=32, max=32)),
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
     },
     extra=vol.ALLOW_EXTRA,
@@ -183,44 +183,41 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
 
     # Create handler
     _LOGGER.info("Initializing with host %s (token %s...)", host, token[:5])
+
+    try:
+        miio_device = Device(host, token)
+        device_info = miio_device.info()
+    except DeviceException:
+        raise PlatformNotReady
+
     vacuum = Vacuum(host, token)
+    device = ViomiVacuumRobot(name, vacuum)
+    hass.data[DATA_KEY][host] = device
 
-    robot = ViomiVacuumRobot(name, vacuum)
-    hass.data[DATA_KEY][host] = robot
-
-    async_add_entities([robot], update_before_add=True)
+    async_add_entities([device], update_before_add=True)
 
     async def async_service_handler(service):
         """Map services to methods on Viomi Vacuum V8."""
         method = SERVICE_TO_METHOD.get(service.service)
-        params = {
-            key: value for key,
-            value in service.data.items() if key != ATTR_ENTITY_ID}
-        entity_ids = service.data.get(ATTR_ENTITY_ID)
-
-        if entity_ids:
-            target_vacuums = [
-                vac
-                for vac in hass.data[DATA_KEY].values()
-                if vac.entity_id in entity_ids
-            ]
-        else:
-            target_vacuums = hass.data[DATA_KEY].values()
-
+        params = service.data.copy()
+        entity_ids = params.pop(ATTR_ENTITY_ID, hass.data[DATA_KEY].values())
         update_tasks = []
-        for vacuum in target_vacuums:
-            await getattr(vacuum, method["method"])(**params)
 
-        for vacuum in target_vacuums:
-            update_coro = vacuum.async_update_ha_state(True)
-            update_tasks.append(update_coro)
+        for device in filter(
+            lambda x: x.entity_id in entity_ids, hass.data[DATA_KEY].values()
+        ):
+            if not hasattr(device, method["method"]):
+                continue
+            await getattr(device, method["method"])(**params)
+            update_tasks.append(device.async_update_ha_state(True))
 
         if update_tasks:
             await asyncio.wait(update_tasks)
 
     for vacuum_service in SERVICE_TO_METHOD:
         schema = SERVICE_TO_METHOD[vacuum_service].get(
-            "schema", VACUUM_SERVICE_SCHEMA)
+            "schema", VACUUM_SERVICE_SCHEMA
+        )
         hass.services.async_register(
             DOMAIN, vacuum_service, async_service_handler, schema=schema
         )
@@ -230,7 +227,7 @@ class ViomiVacuumRobot(StateVacuumEntity):
     """Representation of a Viomi Vacuum V8 robot."""
 
     def __init__(self, name, vacuum):
-        """Initialize the Viomi Vacuum V8 robot handler."""
+        """Initialize the device handler."""
         self._name = name
         self._vacuum = vacuum
 
@@ -246,7 +243,7 @@ class ViomiVacuumRobot(StateVacuumEntity):
 
     @property
     def state(self):
-        """Return the status of the vacuum cleaner."""
+        """Return the state."""
         if self.vacuum_state is not None:
             # The vacuum reverts back to an idle state after erroring out.
             # We want to keep returning an error until it has been cleared.
@@ -262,13 +259,13 @@ class ViomiVacuumRobot(StateVacuumEntity):
 
     @property
     def battery_level(self):
-        """Return the battery level of the vacuum cleaner."""
+        """Return the battery level of the device."""
         if self.vacuum_state is not None:
             return self.vacuum_state['battary_life']
 
     @property
     def fan_speed(self):
-        """Return the fan speed of the vacuum cleaner."""
+        """Return the fan speed of the device."""
         if self.vacuum_state is not None:
             speed = self.vacuum_state['suction_grade']
             if speed in FAN_SPEEDS.values():
@@ -279,12 +276,12 @@ class ViomiVacuumRobot(StateVacuumEntity):
 
     @property
     def fan_speed_list(self):
-        """Get the list of available fan speed steps of the vacuum cleaner."""
+        """Get the list of available fan speed steps of the device."""
         return list(sorted(FAN_SPEEDS.keys(), key=lambda s: FAN_SPEEDS[s]))
 
     @property
     def device_state_attributes(self):
-        """Return the specific state attributes of this vacuum cleaner."""
+        """Return the specific state attributes of this device."""
         attrs = {}
         if self.vacuum_state is not None:
             attrs.update(self.vacuum_state)
@@ -402,7 +399,7 @@ class ViomiVacuumRobot(StateVacuumEntity):
 
     async def async_locate(self, **kwargs):
         """Locate the vacuum cleaner."""
-        await self._try_command("Unable to locate the botvac: %s", self._vacuum.raw_command, 'set_resetpos', [1])
+        await self._try_command("Unable to locate: %s", self._vacuum.raw_command, 'set_resetpos', [1])
 
     async def async_send_command(self, command, params=None, **kwargs):
         # Home Assistant templating always returns a string, even if array is outputted, fix this so we can use templating in scripts.
