@@ -184,14 +184,8 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     # Create handler
     _LOGGER.info("Initializing with host %s (token %s...)", host, token[:5])
 
-    try:
-        miio_device = Device(host, token)
-        device_info = miio_device.info()
-    except DeviceException:
-        raise PlatformNotReady
-
     vacuum = Vacuum(host, token)
-    device = ViomiVacuumRobot(name, vacuum)
+    device = ViomiVacuumEntity(name, vacuum)
     hass.data[DATA_KEY][host] = device
 
     async_add_entities([device], update_before_add=True)
@@ -223,7 +217,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
         )
 
 
-class ViomiVacuumRobot(StateVacuumEntity):
+class ViomiVacuumEntity(StateVacuumEntity):
     """Representation of a Viomi Vacuum V8 robot."""
 
     def __init__(self, name, vacuum):
